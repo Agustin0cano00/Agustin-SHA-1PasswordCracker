@@ -1,42 +1,34 @@
 import hashlib
 
-
 def crack_sha1_hash(hash, use_salts=False):
+    # Abrir archivo de contraseñas comunes
+    with open("top-10000-passwords.txt", "r", encoding="utf-8") as f:
+        passwords = [line.strip() for line in f]
+
+    # Si se usan salts, leer archivo de salts
     salts = []
     if use_salts:
-        # Get all known salts from file if use salts is true
-        with open("known-salts.txt") as salt_file:
-            salts = salt_file.read()
-            salts = salts.split("\n")
+        with open("known-salts.txt", "r", encoding="utf-8") as f:
+            salts = [line.strip() for line in f]
 
-    with open("top-10000-passwords.txt", mode="r") as password_file:
-        # get all passwords to check
-        passwords = password_file.readlines()
-        passwords = tuple(p.strip() for p in passwords)
+    # Caso sin salts
+    if not use_salts:
         for password in passwords:
-            if not use_salts:
-                # password check without salts
-                p_crack = hashlib.sha1()
-                p_crack.update(password.encode("utf-8"))
-                cracked_password_hash = p_crack.hexdigest()
-                if cracked_password_hash == hash:
+            hashed = hashlib.sha1(password.encode("utf-8")).hexdigest()
+            if hashed == hash:
+                return password
+
+    # Caso con salts
+    else:
+        for password in passwords:
+            for salt in salts:
+                # Salt + password
+                combo1 = hashlib.sha1((salt + password).encode("utf-8")).hexdigest()
+                if combo1 == hash:
                     return password
-            else:
-                # password check with salts
-                for salt in salts:
-                    append_pass = salt + password
-                    prepend_pass = password + salt
-                    check_append = False
-                    for _ in range(2):
-                        if check_append:
-                            check_append = False
-                        else:
-                            check_append = True
-                        current_pass = append_pass if check_append else prepend_pass
-                        p_crack = hashlib.sha1()
-                        p_crack.update(current_pass.encode("utf-8"))
-                        cracked_password_hash = p_crack.hexdigest()
-                        if cracked_password_hash == hash:
-                            return password
+                # Password + salt
+                combo2 = hashlib.sha1((password + salt).encode("utf-8")).hexdigest()
+                if combo2 == hash:
+                    return password
 
     return "PASSWORD NOT IN DATABASE"
